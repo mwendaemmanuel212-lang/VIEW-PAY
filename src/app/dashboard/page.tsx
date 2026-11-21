@@ -20,11 +20,21 @@ export default function DashboardPage() {
         return;
       }
 
-      if (!currentUser.emailVerified) {
-        await signOut(auth);
-        router.replace("/login");
-        return;
-      }
+const token = await currentUser.getIdToken();
+
+const response = await fetch("/api/otp/status", {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+
+const status = await response.json();
+
+if (!response.ok || !status.verified) {
+  await signOut(auth);
+  router.replace("/login");
+  return;
+}
 
       setUser(currentUser);
 
