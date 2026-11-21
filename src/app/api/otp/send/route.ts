@@ -109,10 +109,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const code = crypto.randomInt
-      ? String(crypto.randomInt(100000, 1000000))
-      : String(100000 + Math.floor(Math.random() * 900000));
-
+    const random = new Uint32Array(1);
+crypto.getRandomValues(random);
+const code = String(100000 + (random[0] % 900000));
     const codeHash = await hashCode(
       uid,
       code,
