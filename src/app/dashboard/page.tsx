@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import MonetagInPagePush from "@/components/MonetagInPagePush";
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -100,7 +100,7 @@ if (!response.ok || !status.verified) {
 
   return (
     <main className="min-h-screen bg-[#10051f] text-white">
-      <MonetagInPagePush />
+    
       <header className="border-b border-purple-500/20 bg-[#1b0b30] px-5 py-5">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div>
