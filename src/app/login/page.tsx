@@ -2,11 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  signInWithEmailAndPassword,
-  sendEmailVerification,
-  signOut,
-} from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +11,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [otpStage, setOtpStage] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -30,55 +28,88 @@ export default function LoginPage() {
         password
       );
 
-      if (!result.user.emailVerified) {
-        try {
-          await sendEmailVerification(result.user);
-          setMessage(
-            "Your email is not verified. A new verification link has been sent. Check your Inbox and Spam folder."
-          );
-        } catch (error: unknown) {
-          const code =
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error
-              ? String(error.code)
-              : "";
+      const token = await result.user.getIdToken();
 
-          if (code === "auth/too-many-requests") {
-            setMessage(
-              "Too many attempts. Please wait a while before requesting another verification email."
-            );
-          } else {
-            setMessage(
-              "We could not send the verification email. Please try again later."
-            );
-          }
-        }
+      const statusResponse = await fetch("/api/otp/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        await signOut(auth);
+      const status = await statusResponse.json();
+
+      if (!statusResponse.ok) {
+        throw new Error(status.error || "Could not check verification.");
+      }
+
+      if (status.verified) {
+        router.push("/dashboard");
         return;
+      }
+
+      const sendResponse = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const sendData = await sendResponse.json();
+
+      if (!sendResponse.ok) {
+        throw new Error(sendData.error || "Could not send verification code.");
+      }
+
+      if (sendData.alreadyVerified) {
+        router.push("/dashboard");
+        return;
+      }
+
+      setOtpStage(true);
+      setMessage("A six-digit verification code has been sent to your email.");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Login failed.";
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("Your session expired. Please log in again.");
+      }
+
+      const token = await user.getIdToken();
+
+      const response = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Verification failed.");
       }
 
       router.push("/dashboard");
     } catch (error: unknown) {
-      const code =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error
-          ? String(error.code)
-          : "";
-
-      if (
-        code === "auth/invalid-credential" ||
-        code === "auth/wrong-password" ||
-        code === "auth/user-not-found"
-      ) {
-        setMessage("Incorrect email or password.");
-      } else if (code === "auth/too-many-requests") {
-        setMessage("Too many attempts. Please wait and try again.");
-      } else {
-        setMessage("Login failed. Please check your details and try again.");
-      }
+      const errorMessage =
+        error instanceof Error ? error.message : "Verification failed.";
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -91,40 +122,76 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-600 text-3xl font-bold">
             V
           </div>
-          <h1 className="text-3xl font-extrabold">Welcome Back</h1>
+
+          <h1 className="text-3xl font-extrabold">
+            {otpStage ? "Verify Your Email" : "Welcome Back"}
+          </h1>
+
           <p className="mt-2 text-sm text-purple-200">
-            Sign in to your ViewPay account
+            {otpStage
+              ? "Enter the six-digit code sent to your email."
+              : "Sign in to your ViewPay account"}
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-semibold">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full rounded-xl border border-purple-400/30 bg-[#10051f] px-4 py-3 outline-none focus:border-purple-400"
-            />
-          </div>
+        <form
+          onSubmit={otpStage ? handleVerify : handleLogin}
+          className="space-y-5"
+        >
+          {!otpStage ? (
+            <>
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="w-full rounded-xl border border-purple-400/30 bg-[#10051f] px-4 py-3 outline-none focus:border-purple-400"
+                />
+              </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full rounded-xl border border-purple-400/30 bg-[#10051f] px-4 py-3 outline-none focus:border-purple-400"
-            />
-          </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full rounded-xl border border-purple-400/30 bg-[#10051f] px-4 py-3 outline-none focus:border-purple-400"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-semibold">
+                Six-digit verification code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                minLength={6}
+                maxLength={6}
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="Enter your code"
+                className="w-full rounded-xl border border-purple-400/30 bg-[#10051f] px-4 py-3 text-center text-xl tracking-widest outline-none focus:border-purple-400"
+              />
+              <p className="mt-2 text-xs text-purple-200">
+                The code expires after 5 minutes.
+              </p>
+            </div>
+          )}
 
           {message && (
             <p className="rounded-xl bg-purple-500/10 p-3 text-sm text-purple-200">
@@ -137,15 +204,27 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-purple-600 py-3 font-bold hover:bg-purple-500 disabled:opacity-50"
           >
-            {loading ? "Signing in..." : "Login"}
+            {loading
+              ? "Please wait..."
+              : otpStage
+                ? "Verify Email"
+                : "Login"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-purple-200">
-          Don't have an account?{" "}
-          <Link href="/register" className="font-bold text-white underline">
-            Register
-          </Link>
+          {otpStage ? (
+            <Link href="/login" className="font-bold text-white underline">
+              Return to Login
+            </Link>
+          ) : (
+            <>
+              Don't have an account?{" "}
+              <Link href="/register" className="font-bold text-white underline">
+                Register
+              </Link>
+            </>
+          )}
         </p>
       </div>
     </main>
