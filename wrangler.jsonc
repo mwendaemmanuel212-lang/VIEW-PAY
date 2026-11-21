@@ -13,6 +13,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "kv_namespaces": [
+    {
+      "binding": "OTP_KV",
+      "id": "4c11eddad03c428cbd2d7cb89bbe9d51"
+    }
+  ],
   "observability": {
     "enabled": true
   }
