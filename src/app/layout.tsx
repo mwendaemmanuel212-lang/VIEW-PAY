@@ -1,6 +1,6 @@
-
 import type { Metadata } from "next";
 import "./globals.css";
+import MonetagServiceWorker from "@/components/MonetagServiceWorker";
 
 export const metadata: Metadata = {
   title: "ViewPay | Discover Opportunities and Rewards",
@@ -16,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#10051f] text-white antialiased">
+        <MonetagServiceWorker />
         {children}
       </body>
     </html>
