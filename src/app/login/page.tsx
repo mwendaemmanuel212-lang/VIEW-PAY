@@ -2,7 +2,11 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -27,14 +31,54 @@ export default function LoginPage() {
       );
 
       if (!result.user.emailVerified) {
+        try {
+          await sendEmailVerification(result.user);
+          setMessage(
+            "Your email is not verified. A new verification link has been sent. Check your Inbox and Spam folder."
+          );
+        } catch (error: unknown) {
+          const code =
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error
+              ? String(error.code)
+              : "";
+
+          if (code === "auth/too-many-requests") {
+            setMessage(
+              "Too many attempts. Please wait a while before requesting another verification email."
+            );
+          } else {
+            setMessage(
+              "We could not send the verification email. Please try again later."
+            );
+          }
+        }
+
         await signOut(auth);
-        setMessage("Please verify your email before logging in.");
         return;
       }
 
       router.push("/dashboard");
-    } catch {
-      setMessage("Login failed. Check your email and password.");
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error
+          ? String(error.code)
+          : "";
+
+      if (
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found"
+      ) {
+        setMessage("Incorrect email or password.");
+      } else if (code === "auth/too-many-requests") {
+        setMessage("Too many attempts. Please wait and try again.");
+      } else {
+        setMessage("Login failed. Please check your details and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -83,7 +127,7 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <p className="rounded-xl bg-red-500/10 p-3 text-sm text-red-300">
+            <p className="rounded-xl bg-purple-500/10 p-3 text-sm text-purple-200">
               {message}
             </p>
           )}
