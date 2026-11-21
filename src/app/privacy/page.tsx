@@ -1,47 +1,64 @@
 
-import Link from "next/link";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#10051f] px-6 py-16 text-white">
-      <div className="mx-auto max-w-3xl">
-        <Link href="/" className="text-purple-400">← ViewPay Home</Link>
-        <h1 className="mt-10 text-4xl font-bold">Privacy Policy</h1>
-        <p className="mt-3 text-sm text-gray-400">Last updated: November 2026</p>
+    <>
+      <SiteHeader />
+      <main className="min-h-screen bg-[#10051f] px-6 py-16 text-white">
+        <article className="mx-auto max-w-4xl">
+          <h1 className="text-4xl font-bold">Privacy Policy</h1>
+          <p className="mt-4 text-sm text-gray-400">
+            Last updated: November 21, 2026
+          </p>
 
-        <h2 className="mt-8 text-xl font-semibold">Information We Collect</h2>
-        <p className="mt-3 leading-8 text-gray-300">
-          ViewPay may collect information you provide when registering,
-          including your name and email address, as well as information
-          needed to operate your account.
-        </p>
+          <section className="mt-10 space-y-4 leading-8 text-gray-300">
+            <h2 className="text-2xl font-bold text-purple-300">
+              Information We Collect
+            </h2>
+            <p>
+              ViewPay may collect information you provide when creating
+              an account, such as your name and email address.
+            </p>
 
-        <h2 className="mt-8 text-xl font-semibold">How We Use Information</h2>
-        <p className="mt-3 leading-8 text-gray-300">
-          Information may be used to manage accounts, verify email
-          addresses, provide platform services, prevent misuse, and
-          communicate important updates.
-        </p>
+            <h2 className="text-2xl font-bold text-purple-300">
+              How We Use Information
+            </h2>
+            <p>
+              Information may be used to manage accounts, provide platform
+              features, protect security and respond to support requests.
+            </p>
 
-        <h2 className="mt-8 text-xl font-semibold">Data Protection</h2>
-        <p className="mt-3 leading-8 text-gray-300">
-          We aim to protect account information through appropriate
-          technical and organizational safeguards. No online service
-          can guarantee absolute security.
-        </p>
+            <h2 className="text-2xl font-bold text-purple-300">
+              Data Protection
+            </h2>
+            <p>
+              We aim to protect account information and restrict
+              unauthorized access. No online service can guarantee
+              absolute security.
+            </p>
 
-        <h2 className="mt-8 text-xl font-semibold">Your Choices</h2>
-        <p className="mt-3 leading-8 text-gray-300">
-          You may contact ViewPay to ask about your personal information
-          or request assistance with your account.
-        </p>
+            <h2 className="text-2xl font-bold text-purple-300">
+              Third-Party Services
+            </h2>
+            <p>
+              ViewPay uses Firebase services for authentication and
+              related platform functions. Those services may process
+              information under their own privacy terms.
+            </p>
 
-        <h2 className="mt-8 text-xl font-semibold">Contact</h2>
-        <p className="mt-3 leading-8 text-gray-300">
-          Contact details for privacy questions will be provided on
-          the ViewPay contact page.
-        </p>
-      </div>
-    </main>
+            <h2 className="text-2xl font-bold text-purple-300">
+              Contact
+            </h2>
+            <p>
+              Contact ViewPay through its official support channel
+              for privacy questions once support details are published.
+            </p>
+          </section>
+        </article>
+      </main>
+      <SiteFooter />
+    </>
   );
 }
