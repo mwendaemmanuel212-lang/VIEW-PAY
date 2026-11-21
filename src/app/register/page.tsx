@@ -4,7 +4,6 @@
 import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   updateProfile,
   signOut,
 } from "firebase/auth";
@@ -15,6 +14,8 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [otpStage, setOtpStage] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -42,16 +43,29 @@ export default function RegisterPage() {
         updatedAt: serverTimestamp(),
       });
 
-      await sendEmailVerification(result.user);
-      await signOut(auth);
+      const token = await result.user.getIdToken();
 
-      setMessage(
-        "Account created! Check your email and click the verification link before logging in."
-      );
+      const response = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      setFullName("");
-      setEmail("");
-      setPassword("");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not send verification code.");
+      }
+
+      if (data.alreadyVerified) {
+        await signOut(auth);
+        setMessage("Your email is already verified. You can now log in.");
+        return;
+      }
+
+      setOtpStage(true);
+      setMessage("A six-digit verification code has been sent to your email.");
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Registration failed.";
@@ -61,58 +75,142 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("Please register again or log in.");
+      }
+
+      const token = await user.getIdToken();
+
+      const response = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Verification failed.");
+      }
+
+      await signOut(auth);
+      setOtpStage(false);
+      setCode("");
+      setPassword("");
+      setMessage("Email verified successfully! You can now log in.");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Verification failed.";
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main style={styles.page}>
-      <form onSubmit={handleRegister} style={styles.form}>
-        <h1 style={styles.heading}>Join ViewPay</h1>
+      <form
+        onSubmit={otpStage ? handleVerify : handleRegister}
+        style={styles.form}
+      >
+        <h1 style={styles.heading}>
+          {otpStage ? "Verify Your Email" : "Join ViewPay"}
+        </h1>
+
         <p style={styles.subtitle}>
-          Create your account to get started.
+          {otpStage
+            ? "Enter the six-digit code sent to your email."
+            : "Create your account to get started."}
         </p>
 
-        <label style={styles.label}>Full name</label>
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Enter your full name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-        />
+        {!otpStage ? (
+          <>
+            <label style={styles.label}>Full name</label>
+            <input
+              style={styles.input}
+              type="text"
+              placeholder="Enter your full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
 
-        <label style={styles.label}>Email address</label>
-        <input
-          style={styles.input}
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+            <label style={styles.label}>Email address</label>
+            <input
+              style={styles.input}
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-        <label style={styles.label}>Password</label>
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="At least 6 characters"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          minLength={6}
-          required
-        />
+            <label style={styles.label}>Password</label>
+            <input
+              style={styles.input}
+              type="password"
+              placeholder="At least 6 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={6}
+              required
+            />
+          </>
+        ) : (
+          <>
+            <label style={styles.label}>Six-digit verification code</label>
+            <input
+              style={styles.input}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="Enter 6-digit code"
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              minLength={6}
+              maxLength={6}
+              required
+            />
+            <p style={styles.hint}>The code expires after 5 minutes.</p>
+          </>
+        )}
 
         <button
           type="submit"
           disabled={loading}
           style={styles.button}
         >
-          {loading ? "Creating account..." : "Create Account"}
+          {loading
+            ? "Please wait..."
+            : otpStage
+              ? "Verify Email"
+              : "Create Account"}
         </button>
 
         {message && <p style={styles.message}>{message}</p>}
 
         <p style={styles.footer}>
-          Already have an account?{" "}
-          <a href="/login" style={styles.link}>Login</a>
+          {otpStage ? (
+            <a href="/login" style={styles.link}>Go to Login</a>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <a href="/login" style={styles.link}>Login</a>
+            </>
+          )}
         </p>
       </form>
     </main>
@@ -181,6 +279,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#d6c5ff",
     textAlign: "center",
     overflowWrap: "anywhere",
+  },
+  hint: {
+    color: "#c5badf",
+    fontSize: "13px",
   },
   footer: {
     textAlign: "center",
