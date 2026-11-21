@@ -8,7 +8,8 @@ import {
   updateProfile,
   signOut,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -31,6 +32,14 @@ export default function RegisterPage() {
 
       await updateProfile(result.user, {
         displayName: fullName.trim(),
+      });
+
+      await setDoc(doc(db, "users", result.user.uid), {
+        uid: result.user.uid,
+        fullName: fullName.trim(),
+        email: result.user.email ?? email.trim(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       await sendEmailVerification(result.user);
@@ -184,4 +193,3 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
   },
 };
-          
